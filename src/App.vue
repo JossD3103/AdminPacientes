@@ -1,5 +1,6 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
+import { uid } from 'uid'
 import Header from './components/Header.vue';
 import Formulario from './components/Formulario.vue';
 import Paciente from './components/Paciente.vue';
@@ -7,6 +8,7 @@ import Paciente from './components/Paciente.vue';
   const pacientes = ref ([])
 
   const paciente = reactive({
+    id: null,
     nombre: '',
     propietario: '',
     email: '',
@@ -15,14 +17,49 @@ import Paciente from './components/Paciente.vue';
   })
 
   const guardarPaciente = () => {
-    pacientes.value.push({
-      ...paciente
+    if (paciente.id) {
+      const { id } = paciente
+      const i = pacientes.value.findIndex(paciente => paciente.id === id )
+      pacientes.value[i] = {...paciente}
+    } else {
+      pacientes.value.push({
+        ...paciente,
+        id: uid()
+      })
+    }
+    Object.assign(paciente, {
+      nombre: '',
+      propietario: '',
+      email: '',
+      alta: '',
+      sintomas: '',
+      id: null,
     })
-    paciente.nombre = ''
-    paciente.propietario = ''
-    paciente.email = ''
-    paciente.alta = ''
-    paciente.sintomas = ''
+  }
+
+  watch(pacientes, () => {
+    guardarLocalStorage()
+  }, {
+    deep: true
+  })
+
+  onMounted(() => {
+    const pacienteStorage = localStorage.getItem('pacientes')
+    if (pacienteStorage) {
+      pacientes.value = JSON.parse(pacienteStorage)
+    }
+  })
+  const guardarLocalStorage = () => {
+    localStorage.setItem('pacientes', JSON.stringify(pacientes.value))
+  }
+
+  const actualizarPaciente = (id) => {
+    const pacienteEditar = pacientes.value.filter(paciente => paciente.id === id)[0]
+    Object.assign(paciente, pacienteEditar)
+  }
+
+  const eliminarPaciente = (id) => {
+    pacientes.value = pacientes.value.filter(paciente => paciente.id !== id)
   }
 
 </script>
@@ -38,6 +75,7 @@ import Paciente from './components/Paciente.vue';
         v-model:alta="paciente.alta"
         v-model:sintomas="paciente.sintomas"
         @guardar-paciente="guardarPaciente"
+        :id="paciente.id"
       />
 
       <div
@@ -52,6 +90,8 @@ import Paciente from './components/Paciente.vue';
           <Paciente
             v-for="paciente in pacientes"
             :paciente="paciente"
+            @actualizar-paciente="actualizarPaciente"
+            @eliminar-paciente="eliminarPaciente"
           />
         </div>
         <p v-else class="mt-20 text-2xl text-center">No hay pacientes registrados</p>
